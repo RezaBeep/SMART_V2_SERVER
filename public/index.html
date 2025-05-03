@@ -10,7 +10,7 @@
 
     <script>
       const socket = io("https://smartv2server-production.up.railway.app:8080");
-      const log = document.getElementById("log");
+      const log = document.getElementById("logg");
 
       socket.on("newData", (data) => {
         log.textContent += `→ ${data}\n`;
