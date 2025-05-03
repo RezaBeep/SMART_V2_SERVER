@@ -24,6 +24,12 @@ app.post("/data", (req, res) => {
   res.sendStatus(200);
 });
 
+app.post("/location", (req, res) => {
+  const { lat, lng, timestamp } = req.body;
+  console.log(`📍 GPS @ ${timestamp} — (${lat}, ${lng})`);
+  res.sendStatus(200);
+});
+
 // Socket.IO listener
 io.on("connection", (socket) => {
   console.log("Client connected");
