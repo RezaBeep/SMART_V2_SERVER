@@ -3,17 +3,71 @@
   <head>
     <title>Live Bluetooth Data</title>
     <script src="https://cdn.socket.io/4.3.2/socket.io.min.js"></script>
+    <style>
+      #log {
+        white-space: pre-wrap;
+        height: 300px;
+        overflow-y: auto;
+        padding: 10px;
+        border: 1px solid #ccc;
+        font-family: monospace;
+        background: #f9f9f9;
+      }
+      .temp {
+        color: #007bff;
+      } /* blue */
+      .heart {
+        color: #28a745;
+      } /* green */
+      .spo2-normal {
+        color: #6c757d;
+      } /* gray */
+      .spo2-low {
+        color: red;
+        font-weight: bold;
+      }
+    </style>
   </head>
   <body>
     <h2>📶 Live Data from HC-05</h2>
-    <div id="log" style="white-space: pre-wrap"></div>
+    <div id="log"></div>
 
     <script>
       const socket = io("https://smartv2server-production.up.railway.app");
       const log = document.getElementById("log");
 
       socket.on("newData", (data) => {
-        log.textContent += `→ ${data}\n`;
+        const line = data.value.trim();
+
+        let formatted = "";
+
+        if (line.startsWith("Temp")) {
+          formatted = `<div class="temp">🌡️ ${line}</div>`;
+        } else if (line.startsWith("Heart rate")) {
+          const hrMatch = line.match(
+            /Heart rate:(\d+(\.\d+)?)bpm \/ SpO2:(\d+)%/
+          );
+          if (hrMatch) {
+            const bpm = hrMatch[1];
+            const spo2 = parseInt(hrMatch[3]);
+            const spo2Class = spo2 < 95 ? "spo2-low" : "spo2-normal";
+            formatted = `
+              <div>
+                <span class="heart">❤️ Heart Rate: ${bpm} bpm</span> /
+                <span class="${spo2Class}">🫁 SpO₂: ${spo2}%</span>
+              </div>
+            `;
+          } else {
+            formatted = `<div>${line}</div>`; // fallback
+          }
+        } else {
+          formatted = `<div>${line}</div>`;
+        }
+
+        if (log) {
+          log.innerHTML += formatted;
+          log.scrollTop = log.scrollHeight;
+        }
       });
     </script>
   </body>
