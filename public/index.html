@@ -1,7 +1,9 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
-    <title>Live Bluetooth Data</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Live Bluetooth & GPS Data</title>
     <script src="https://cdn.socket.io/4.3.2/socket.io.min.js"></script>
     <style>
       #log {
@@ -26,10 +28,13 @@
         color: red;
         font-weight: bold;
       }
+      .location {
+        color: #dc3545;
+      } /* red */
     </style>
   </head>
   <body>
-    <h2>📶 Live Data from HC-05</h2>
+    <h2>📶 Live Data from HC-05 & GPS</h2>
     <div id="log"></div>
 
     <script>
@@ -46,6 +51,7 @@
         const time = getTime();
         let formatted = "";
 
+        // If data is from Bluetooth (e.g., Temp or Heart rate)
         if (line.startsWith("Temp")) {
           formatted = `<div class="temp">[${time}] 🌡️ ${line}</div>`;
         } else if (line.startsWith("Heart rate")) {
@@ -65,6 +71,20 @@
         `;
           } else {
             formatted = `<div>[${time}] ${line}</div>`;
+          }
+        } else if (line.startsWith("Location")) {
+          // GPS data (latitude and longitude)
+          const locationMatch = line.match(
+            /Location - Latitude: (-?\d+\.\d+), Longitude: (-?\d+\.\d+)/
+          );
+          if (locationMatch) {
+            const lat = locationMatch[1];
+            const lng = locationMatch[2];
+            formatted = `
+              <div class="location">
+                [${time}] 🌍 Location: Latitude: ${lat}, Longitude: ${lng}
+              </div>
+            `;
           }
         } else {
           formatted = `<div>[${time}] ${line}</div>`;
