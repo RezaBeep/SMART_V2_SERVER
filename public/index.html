@@ -9,7 +9,7 @@
     <div id="log" style="white-space: pre-wrap"></div>
 
     <script>
-      const socket = io("https://smartv2server-production.up.railway.app:8080");
+      const socket = io("https://smartv2server-production.up.railway.app");
       const log = document.getElementById("logg");
 
       socket.on("newData", (data) => {
