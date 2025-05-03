@@ -36,13 +36,18 @@
       const socket = io("https://smartv2server-production.up.railway.app");
       const log = document.getElementById("log");
 
+      function getTime() {
+        const now = new Date();
+        return now.toLocaleTimeString(); // e.g., "14:05:33"
+      }
+
       socket.on("newData", (data) => {
         const line = data.trim();
-
+        const time = getTime();
         let formatted = "";
 
         if (line.startsWith("Temp")) {
-          formatted = `<div class="temp">🌡️ ${line}</div>`;
+          formatted = `<div class="temp">[${time}] 🌡️ ${line}</div>`;
         } else if (line.startsWith("Heart rate")) {
           const hrMatch = line.match(
             /Heart rate:(\d+(\.\d+)?)bpm \/ SpO2:(\d+)%/
@@ -52,16 +57,17 @@
             const spo2 = parseInt(hrMatch[3]);
             const spo2Class = spo2 < 95 ? "spo2-low" : "spo2-normal";
             formatted = `
-              <div>
-                <span class="heart">❤️ Heart Rate: ${bpm} bpm</span> /
-                <span class="${spo2Class}">🫁 SpO₂: ${spo2}%</span>
-              </div>
-            `;
+          <div>
+            [${time}]
+            <span class="heart">❤️ Heart Rate: ${bpm} bpm</span> /
+            <span class="${spo2Class}">🫁 SpO₂: ${spo2}%</span>
+          </div>
+        `;
           } else {
-            formatted = `<div>${line}</div>`; // fallback
+            formatted = `<div>[${time}] ${line}</div>`;
           }
         } else {
-          formatted = `<div>${line}</div>`;
+          formatted = `<div>[${time}] ${line}</div>`;
         }
 
         if (log) {
