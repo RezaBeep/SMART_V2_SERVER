@@ -10,10 +10,10 @@
 
     <script>
       const socket = io("https://smartv2server-production.up.railway.app");
-      const log = document.getElementById("logg");
+      const log = document.getElementById("log");
 
       socket.on("newData", (data) => {
-        log.textContent += `→ ${data}\n`;
+        log.textContent += `→ ${data.value}\n`;
       });
     </script>
   </body>
