@@ -5,7 +5,7 @@ const port = 3000;
 
 server.use(express.json());
 
-server.post("/mqtt-data", (req, res) => {
+server.post("/data", (req, res) => {
   console.log("Received MQTT Data:", req.body);
   res.sendStatus(200);
 });
