@@ -1,6 +1,6 @@
-const aedes = require("aedes")();
-const net = require("net");
-const axios = require("axios");
+const aedes = require("aedes");
+import { createServer } from "net";
+import { post } from "axios";
 
 const mqttPort = 1883;
 const expressServerUrl = "https://smartv2server-production.up.railway.app/data";
