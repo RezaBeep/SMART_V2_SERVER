@@ -1,38 +1,12 @@
-const express = require("express");
-const http = require("http");
-const cors = require("cors");
-const { Server } = require("socket.io");
-const path = require("path");
+import express, { json } from "express";
+const server = express();
+const port = 3000;
 
-const app = express();
-const server = http.createServer(app);
-const io = new Server(server, {
-  cors: { origin: "*" },
-});
+server.use(json());
 
-app.use(cors());
-app.use(express.json());
-
-// Serve static files (like index.html) from 'public' directory
-app.use(express.static(path.join(__dirname, "public")));
-
-// API route to receive data
-app.post("/data", (req, res) => {
-  const value = req.body.value;
-  console.log("Received:", value);
-  io.emit("newData", value); // Broadcast to all clients
+server.post("/mqtt-data", (req, res) => {
+  console.log("Received MQTT Data:", req.body);
   res.sendStatus(200);
-});
-
-app.post("/location", (req, res) => {
-  const { lat, lng, timestamp } = req.body;
-  console.log(`📍 GPS @ ${timestamp} — (${lat}, ${lng})`);
-  res.sendStatus(200);
-});
-
-// Socket.IO listener
-io.on("connection", (socket) => {
-  console.log("Client connected");
 });
 
 // Use Railway-provided port
