@@ -5,7 +5,7 @@ const axios = require("axios");
 const mqttPort = 1883;
 const expressServerUrl = "https://smartv2server-production.up.railway.app/data";
 
-const server = createServer(aedes.handle);
+const server = net.createServer(aedes.handle);
 
 server.listen(mqttPort, function () {
   console.log(`🚀 MQTT broker started and listening on port ${mqttPort}`);
