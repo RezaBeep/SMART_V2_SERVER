@@ -1,7 +1,31 @@
+require("dotenv").config();
 const express = require("express");
+const mqtt = require("mqtt");
 
 const server = express();
-const port = 3000;
+
+let latestData = null;
+
+const mqttClient = mqtt.connect(process.env.MQTT_BROKER);
+
+mqttClient.on("connect", () => {
+  console.log("✅ MQTT connected");
+
+  mqttClient.subscribe("#", (err) => {
+    if (err) {
+      console.error("Subscription error:", err);
+    }
+  });
+});
+
+mqttClient.on("message", (topic, message) => {
+  console.log(`📩 Message received [${topic}]: ${message.toString()}`);
+  latestData = {
+    topic,
+    message: message.toString(),
+    timestamp: new Date(),
+  };
+});
 
 server.use(express.json());
 
