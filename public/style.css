@@ -1,0 +1,37 @@
+#map {
+  position: absolute;
+  width: 50%;
+  height: 35%;
+  right: 5%;
+  top: 5%;
+}
+
+.container {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.chart {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  height: auto;
+  margin-right: 20px;
+}
+
+#HRChart {
+  /* position: relative; */
+  /* width: 100px; */
+  /* height: 200px; */
+}
+
+#tempChart {
+  /* position: relative; */
+  /* width: 200px; */
+  /* height: 200px; */
+}
+
+canvas {
+  width: 50% !important;
+  height: 300px !important;
+}
