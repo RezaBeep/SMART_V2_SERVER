@@ -91,7 +91,7 @@
       let temp_chart = new Chart(temp_ctx, temp_cfg);
 
       setInterval(async () => {
-        const url = "https://smartv2server-production.up.railway.app/api/data";
+        const url = "https://localhost:3000/api/data";
         try {
           const response = await fetch(url);
           if (!response.ok) {
