@@ -3,8 +3,16 @@ const express = require("express");
 const mqtt = require("mqtt");
 
 const server = express();
+server.use(express.json());
+server.use(express.static("public"));
 
-let latestData = null;
+let latestData = {
+  hr: 0,
+  spo2: 0,
+  temp: 0,
+  lat: 0,
+  long: 0,
+};
 
 const mqttClient = mqtt.connect(process.env.MQTT_BROKER);
 
@@ -19,19 +27,38 @@ mqttClient.on("connect", () => {
 });
 
 mqttClient.on("message", (topic, message) => {
-  console.log(`📩 Message received [${topic}]: ${message.toString()}`);
-  latestData = {
-    topic,
-    message: message.toString(),
-    timestamp: new Date(),
-  };
+  // console.log(`📩 Message received [${topic}]: ${message.toString()}`);
+  let data = message.toString();
+  try {
+    const parsed = JSON.parse(data);
+    latestData = parsed;
+    console.log(`📩 Message received [${topic}]: ${data}`);
+  } catch (e) {
+    // console.error("Invalid JSON from MQTT");
+    // Try fixing
+    data = data
+      .replace(/"lat":\s*,/, '"lat":0.0,')
+      .replace(/"long":\s*}/, '"long":0.0}');
+    try {
+      latestData = JSON.parse(data);
+      console.log(`📩 Message received [${topic}]: ${data}`);
+    } catch (e2) {
+      console.error("Failed to fix and parse data:", e2);
+      return;
+    }
+  }
 });
 
-server.use(express.json());
-
-server.post("/data", (req, res) => {
-  console.log("Received MQTT Data:", req.body);
-  res.sendStatus(200);
+// Serve latest data
+server.get("/api/data", (req, res) => {
+  res.json(latestData);
+  latestData = {
+    hr: 0,
+    spo2: 0,
+    temp: 0,
+    lat: latestData["lat"],
+    long: latestData["long"],
+  };
 });
 
 // Use Railway-provided port
