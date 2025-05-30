@@ -26,8 +26,13 @@ mqttClient.on("connect", () => {
   });
 });
 
+let last_msg = 0;
+let online_status = false;
+
 mqttClient.on("message", (topic, message) => {
   // console.log(`📩 Message received [${topic}]: ${message.toString()}`);
+  last_msg = new Date().getTime();
+  online_status = true;
   let data = message.toString();
   try {
     const parsed = JSON.parse(data);
@@ -51,6 +56,11 @@ mqttClient.on("message", (topic, message) => {
 
 // Serve latest data
 server.get("/api/data", (req, res) => {
+  if (new Date().getTime() - last_msg > 20000) {
+    latestData["online"] = false;
+  } else {
+    latestData["online"] = true;
+  }
   res.json(latestData);
   latestData = {
     hr: 0,
