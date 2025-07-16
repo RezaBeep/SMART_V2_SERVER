@@ -56,6 +56,8 @@ mqttClient.on("message", (topic, message) => {
 
 // Serve latest data
 server.get("/api/data", (req, res) => {
+  console.log("cinet");
+
   if (new Date().getTime() - last_msg > 20000) {
     latestData["online"] = false;
   } else {
@@ -73,6 +75,6 @@ server.get("/api/data", (req, res) => {
 
 // Use Railway-provided port
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, "0.0.0.0", () => {
+server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
