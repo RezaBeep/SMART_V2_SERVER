@@ -7,30 +7,22 @@
     <link rel="stylesheet" href="/style.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-      #map {
-        height: 300px;
-        width: 150;
-      }
-    </style>
   </head>
   <body>
     <div class="online" style="background-color: forestgreen"></div>
     <div class="container">
-      <div class="chart">
-        <div>
-          <canvas id="HRChart"></canvas>
-        </div>
-        <div>
-          <canvas id="tempChart"></canvas>
-        </div>
-      </div>
+      <div class="chart"></div>
       <div id="map"></div>
+    </div>
+    <div class="log-container">
+      <h3>📋 Events</h3>
+      <div id="log" class="log-box"></div>
     </div>
 
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script>
       const online_div = document.querySelector(".online");
+      const chart_div = document.querySelector(".chart");
 
       var map = L.map("map").setView([51.505, -0.09], 13); // Coordinates for London, zoom level 13
 
@@ -38,107 +30,168 @@
         attribution: "© OpenStreetMap contributors",
       }).addTo(map);
 
-      // Add a marker
-      const marker = L.marker([51.5, -0.1])
-        .addTo(map)
-        .bindPopup("A sample marker.")
-        .openPopup();
+      function logEvent(userid, message, type = "info") {
+        const logBox = document.getElementById("log");
+        const timestamp = new Date().toLocaleTimeString();
 
-      const hr_ctx = document.getElementById("HRChart");
-      const temp_ctx = document.getElementById("tempChart");
-      let hr_cfg = {
-        type: "line",
-        data: {
-          labels: [],
-          datasets: [
-            {
-              label: "Heart Rate",
-              data: [],
-              borderWidth: 1,
-              borderColor: "red",
-            },
-            {
-              label: "SpO2",
-              data: [],
-              borderWidth: 1,
-              borderColor: "green",
-            },
-          ],
-        },
-        options: {
-          scales: {
-            y: {
-              beginAtZero: true,
-            },
-          },
-        },
-      };
+        const entry = document.createElement("div");
+        entry.classList.add("log-entry", `log-${type}`);
 
-      let temp_cfg = {
-        type: "line",
-        data: {
-          labels: [],
-          datasets: [
-            {
-              label: "temp",
-              data: [],
-              borderWidth: 1,
-              borderColor: "blue",
-            },
-          ],
-        },
-        options: {
-          scales: {
-            y: {
-              beginAtZero: true,
-            },
-          },
-        },
-      };
+        entry.innerHTML = `<strong>[${timestamp}] [${userid}]</strong> ${message}`;
 
-      let hr_chart = new Chart(hr_ctx, hr_cfg);
-      let temp_chart = new Chart(temp_ctx, temp_cfg);
+        logBox.appendChild(entry);
+        logBox.scrollTop = logBox.scrollHeight;
+      }
+
       const MAX_POINTS = 20;
 
-      setInterval(async () => {
-        const url = "http://185.204.197.169:3000/api/data";
-        try {
-          const response = await fetch(url);
-          if (!response.ok) {
-            throw new Error(`Response status: ${response.status}`);
-          }
-          const json = await response.json();
-          console.log(json);
-          if (json["online"] === true) {
-            online_div.style.backgroundColor = "forestgreen";
-            online_div.innerHTML = "<strong>ONLINE</strong>";
-          } else {
-            online_div.style.backgroundColor = "red";
-            online_div.innerHTML = "<strong>OFFLINE</strong>";
-          }
+      class User {
+        constructor(userid) {
+          this.userid = userid;
+          this.isOnline = true;
+          this.lastTime = Date.now();
+          this.marker = L.marker([0, 0])
+            .addTo(map)
+            .bindPopup(this.userid)
+            .openPopup();
+          this.hr_ctx = document.getElementById(`${this.userid}_hr`);
+          this.temp_ctx = document.getElementById(`${this.userid}_temp`);
+          this.hr_cfg = {
+            type: "line",
+            data: {
+              labels: [],
+              datasets: [
+                {
+                  label: "Heart Rate",
+                  data: [],
+                  borderWidth: 1,
+                  borderColor: "red",
+                },
+                {
+                  label: "SpO2",
+                  data: [],
+                  borderWidth: 1,
+                  borderColor: "green",
+                },
+              ],
+            },
+            options: {
+              scales: {
+                y: {
+                  beginAtZero: true,
+                },
+              },
+            },
+          };
+          this.temp_cfg = {
+            type: "line",
+            data: {
+              labels: [],
+              datasets: [
+                {
+                  label: "temp",
+                  data: [],
+                  borderWidth: 1,
+                  borderColor: "blue",
+                },
+              ],
+            },
+            options: {
+              scales: {
+                y: {
+                  beginAtZero: true,
+                },
+              },
+            },
+          };
+          this.hr_chart = new Chart(this.hr_ctx, this.hr_cfg);
+          this.temp_chart = new Chart(this.temp_ctx, this.temp_cfg);
+        }
+        addData(msg) {
+          this.lastTime = Date.now();
           const now = new Date();
           const time = now.toLocaleTimeString();
+          if (msg.data.type === "POX") {
+            if (this.hr_cfg.data.labels.length > MAX_POINTS) {
+              this.hr_cfg.data.labels.shift();
+              this.hr_cfg.data.datasets[0].data.shift();
+              this.hr_cfg.data.datasets[1].data.shift();
+            }
+            this.hr_cfg.data.labels.push(time);
+            this.hr_cfg.data.datasets[0].data.push(msg.data.hr);
+            this.hr_cfg.data.datasets[1].data.push(msg.data.spo2);
+          }
+          if (msg.data.type === "ENV") {
+            if (this.temp_cfg.data.labels.length > MAX_POINTS) {
+              this.temp_cfg.data.labels.shift();
+              this.temp_cfg.data.datasets[0].data.shift();
+            }
+            this.temp_cfg.data.labels.push(time);
+            this.temp_cfg.data.datasets[0].data.push(msg.data.temp);
 
-          if (hr_cfg.data.labels.length > MAX_POINTS) {
-            hr_cfg.data.labels.shift();
-            hr_cfg.data.datasets[0].data.shift();
-            hr_cfg.data.datasets[1].data.shift();
-            temp_cfg.data.labels.shift();
-            temp_cfg.data.datasets[0].data.shift();
+            this.marker.setLatLng([msg.data.lat, msg.data.long]);
+            this.marker.bindPopup(
+              `User: ${this.userid}<br>Temp: ${msg.data.temp}°C`
+            );
           }
 
-          hr_cfg.data.labels.push(time);
-          hr_cfg.data.datasets[0].data.push(json["hr"]);
-          hr_cfg.data.datasets[1].data.push(json["spo2"]);
-          temp_cfg.data.labels.push(time);
-          temp_cfg.data.datasets[0].data.push(json["temp"]);
-          hr_chart.update();
-          temp_chart.update();
-          marker.setLatLng([json["lat"], json["long"]]);
-        } catch (error) {
-          console.error(error.message);
+          if (msg.data.type === "ACC") {
+            if (msg.data.ev == "FREEFALL") {
+              logEvent(this.userid, "FreeFall detected!!!", "error");
+            } else {
+              logEvent(this.userid, msg.data.ev, "warning");
+            }
+          }
+
+          this.hr_chart.update();
+          this.temp_chart.update();
         }
-      }, 2000);
+      }
+
+      let users = {};
+
+      // ✅ Connect to WebSocket server
+      const socket = new WebSocket("ws://" + "localhost" + ":8080");
+
+      socket.onopen = () => {
+        console.log("WebSocket connected");
+        online_div.style.backgroundColor = "forestgreen";
+        online_div.innerHTML = "<strong>ONLINE</strong>";
+      };
+
+      socket.onclose = () => {
+        console.warn("WebSocket disconnected");
+        online_div.style.backgroundColor = "red";
+        online_div.innerHTML = "<strong>OFFLINE</strong>";
+      };
+
+      socket.onerror = (err) => {
+        console.error("WebSocket error", err);
+      };
+
+      // ✅ When receiving message from server
+      socket.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          let userid = msg.userid;
+          console.log(`msg from username: ${msg.userid}`);
+
+          if (!users[msg.userid]) {
+            chart_div.insertAdjacentHTML(
+              "beforeend",
+              `<div class="user-card">
+                <h3>User: ${userid}</h3>
+                <canvas id="${userid}_hr"></canvas>
+                <canvas id="${userid}_temp"></canvas>
+              </div>‍‍‍`
+            );
+            users[msg.userid] = new User(msg.userid);
+          }
+          users[msg.userid].addData(msg);
+        } catch (e) {
+          console.error("Invalid Json message", e);
+        }
+      };
     </script>
   </body>
 </html>

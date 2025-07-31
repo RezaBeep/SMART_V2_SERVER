@@ -1,21 +1,52 @@
 require("dotenv").config();
 const express = require("express");
 const mqtt = require("mqtt");
+const WebSocket = require("ws");
 
 const server = express();
 server.use(express.json());
 server.use(express.static("public"));
 
-let latestData = {
-  hr: 0,
-  spo2: 0,
+const wss = new WebSocket.Server({ port: 8080 });
+
+wss.on("connection", function connection(ws) {
+  console.log("Client connected");
+
+  ws.on("message", function message(data) {
+    console.log("Received:", data);
+  });
+});
+
+function broadcast(msg) {
+  // Broadcast to all connected clients
+  wss.clients.forEach(function each(client) {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(msg);
+    }
+  });
+}
+
+let env = {
+  type: "",
   temp: 0,
+  rh: 0,
   lat: 0,
   long: 0,
+  alt: 0,
+};
+
+let heart = {
+  type: "",
+  hr: 0,
+  spo2: 0,
+};
+
+let acc = {
+  type: "ACC",
+  ev: "",
 };
 
 const mqttClient = mqtt.connect(process.env.MQTT_BROKER);
-
 mqttClient.on("connect", () => {
   console.log("✅ MQTT connected");
 
@@ -33,24 +64,31 @@ mqttClient.on("message", (topic, message) => {
   // console.log(`📩 Message received [${topic}]: ${message.toString()}`);
   last_msg = new Date().getTime();
   online_status = true;
+  let user_id = topic.split("/")[0];
+  let msg_type = topic.split("/")[1];
   let data = message.toString();
   try {
-    const parsed = JSON.parse(data);
-    latestData = parsed;
-    console.log(`📩 Message received [${topic}]: ${data}`);
-  } catch (e) {
-    // console.error("Invalid JSON from MQTT");
-    // Try fixing
-    data = data
-      .replace(/"lat":\s*,/, '"lat":0.0,')
-      .replace(/"long":\s*}/, '"long":0.0}');
-    try {
-      latestData = JSON.parse(data);
+    if (msg_type == "ACC") {
+      broadcast(
+        JSON.stringify({
+          userid: user_id,
+          data: { type: "ACC", ev: message.toString() },
+        })
+      );
+    } else {
+      const parsed = JSON.parse(data);
+      parsed["type"] = msg_type;
+      if (topic.includes("ENV")) {
+        env = parsed;
+        broadcast(JSON.stringify({ userid: user_id, data: env }));
+      } else if (topic.includes("POX")) {
+        heart = parsed;
+        broadcast(JSON.stringify({ userid: user_id, data: heart }));
+      }
       console.log(`📩 Message received [${topic}]: ${data}`);
-    } catch (e2) {
-      console.error("Failed to fix and parse data:", e2);
-      return;
     }
+  } catch (e) {
+    console.error("Invalid JSON from MQTT");
   }
 });
 
@@ -73,7 +111,6 @@ server.get("/api/data", (req, res) => {
   };
 });
 
-// Use Railway-provided port
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
