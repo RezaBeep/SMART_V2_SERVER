@@ -30,6 +30,42 @@
         attribution: "© OpenStreetMap contributors",
       }).addTo(map);
 
+      class KalmanFilter {
+        constructor({ R = 0.01, Q = 1 } = {}) {
+          this.R = R; // noise
+          this.Q = Q; // process variance
+          this.A = 1;
+          this.B = 0;
+          this.C = 1;
+          this.cov = NaN;
+          this.x = NaN;
+        }
+
+        filter(z) {
+          if (isNaN(this.x)) {
+            this.x = (1 / this.C) * z;
+            this.cov = (1 / this.C) * this.R * (1 / this.C);
+          } else {
+            // Prediction
+            const predX = this.A * this.x;
+            const predCov = this.A * this.cov * this.A + this.Q;
+
+            // Kalman Gain
+            const K = (predCov * this.C) / (this.C * predCov * this.C + this.R);
+
+            // Correction
+            this.x = predX + K * (z - this.C * predX);
+            this.cov = predCov - K * this.C * predCov;
+          }
+
+          return this.x;
+        }
+
+        lastEstimate() {
+          return this.x;
+        }
+      }
+
       function logEvent(userid, message, type = "info") {
         const logBox = document.getElementById("log");
         const timestamp = new Date().toLocaleTimeString();
@@ -73,6 +109,12 @@
                   borderWidth: 1,
                   borderColor: "green",
                 },
+                {
+                  label: "Heart Rate Filtered",
+                  data: [],
+                  borderWidth: 1,
+                  borderColor: "yellow",
+                },
               ],
             },
             options: {
@@ -106,6 +148,8 @@
           };
           this.hr_chart = new Chart(this.hr_ctx, this.hr_cfg);
           this.temp_chart = new Chart(this.temp_ctx, this.temp_cfg);
+          this.kf_hr = new KalmanFilter({ R: 20, Q: 1 });
+          this.kf_spo2 = new KalmanFilter({ R: 0.1, Q: 1 });
         }
         addData(msg) {
           this.lastTime = Date.now();
@@ -116,10 +160,14 @@
               this.hr_cfg.data.labels.shift();
               this.hr_cfg.data.datasets[0].data.shift();
               this.hr_cfg.data.datasets[1].data.shift();
+              this.hr_cfg.data.datasets[2].data.shift();
             }
+            const hr_filtered = this.kf_hr.filter(msg.data.hr);
+            const spo2_filtered = this.kf_spo2.filter(msg.data.spo2);
             this.hr_cfg.data.labels.push(time);
             this.hr_cfg.data.datasets[0].data.push(msg.data.hr);
             this.hr_cfg.data.datasets[1].data.push(msg.data.spo2);
+            this.hr_cfg.data.datasets[2].data.push(hr_filtered);
           }
           if (msg.data.type === "ENV") {
             if (this.temp_cfg.data.labels.length > MAX_POINTS) {
@@ -131,7 +179,7 @@
 
             this.marker.setLatLng([msg.data.lat, msg.data.long]);
             this.marker.bindPopup(
-              `User: ${this.userid}<br>Temp: ${msg.data.temp}°C`
+              `User: ${this.userid}<br>Temp: ${msg.data.temp}<br>RH: ${msg.data.rh}% <br>Altitude: ${msg.data.alt} m`
             );
           }
 
@@ -186,12 +234,21 @@
               </div>‍‍‍`
             );
             users[msg.userid] = new User(msg.userid);
+            logEvent(userid, "Connected!", "success");
           }
           users[msg.userid].addData(msg);
         } catch (e) {
           console.error("Invalid Json message", e);
         }
       };
+
+      setInterval(() => {
+        for (let id in users) {
+          if (Date.now() - users[id].lastTime > 240000) {
+            logEvent(id, "is Disconnected!", "error");
+          }
+        }
+      }, 120000);
     </script>
   </body>
 </html>
